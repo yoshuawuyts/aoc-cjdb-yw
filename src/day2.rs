@@ -1,46 +1,65 @@
-use crate::utility::split_lines;
-use regex::{Captures, Regex};
+use std::{convert::Infallible, str::FromStr};
 
-fn is_possible(game: &str, colour: &str, max_values: i32) -> bool {
-    let re = Regex::new(&format!(r"(\d+) {}", colour)).unwrap();
-    max_values
-        >= re
-            .captures_iter(game)
-            .map(|c: Captures| -> i32 { c.get(1).unwrap().as_str().parse().unwrap() })
-            .max()
-            .unwrap_or(0)
+use crate::utility::split_lines;
+
+#[derive(Debug)]
+struct Game {
+    red: i32,
+    green: i32,
+    blue: i32,
+}
+
+impl Game {
+    fn is_valid(&self) -> bool {
+        let red = 12;
+        let green = 13;
+        let blue = 14;
+
+        red >= self.red && green >= self.green && blue >= self.blue
+    }
+}
+
+impl FromStr for Game {
+    type Err = Infallible;
+
+    fn from_str(line: &str) -> Result<Self, Self::Err> {
+        let index = line.find(':').unwrap() + 2;
+        let (_, line) = line.split_at(index);
+        let mut ret = Self {
+            red: 0,
+            green: 0,
+            blue: 0,
+        };
+
+        for round in line.split(';') {
+            for colour in round.split(',') {
+                let (n, colour) = colour.trim().split_once(' ').unwrap();
+                let n: i32 = n.parse().unwrap();
+                match colour {
+                    "red" => ret.red = ret.red.max(n),
+                    "green" => ret.green = ret.green.max(n),
+                    "blue" => ret.blue = ret.blue.max(n),
+                    _ => unreachable!(),
+                }
+            }
+        }
+
+        Ok(ret)
+    }
 }
 
 pub fn problem_one(input: &str) -> i32 {
     let input = split_lines(input);
-    let red = 12;
-    let green = 13;
-    let blue = 14;
-
-    let input: Vec<String> = input
-        .into_iter()
-        .map(|s| -> String {
-            s.chars()
-                .skip_while(|c| c != &':')
-                .collect::<String>()
-                .trim()
-                .into()
-        })
-        .collect();
 
     let mut result = 0;
-    let mut i = 1;
-    for game in input {
-        let red = is_possible(&game, "red", red);
-        let green = is_possible(&game, "green", green);
-        let blue = is_possible(&game, "blue", blue);
-        if red && green && blue {
-            result += i;
+    for (index, line) in input.iter().enumerate() {
+        let game: Game = line.parse().unwrap();
+        if game.is_valid() {
+            result += index + 1;
         }
-        i += 1;
     }
 
-    result
+    result as i32
 }
 
 #[cfg(test)]
